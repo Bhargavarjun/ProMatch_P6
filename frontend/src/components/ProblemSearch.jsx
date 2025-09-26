@@ -7,7 +7,6 @@ export default function ProblemSearch() {
   const [results, setResults] = useState([]);
   const [allData, setAllData] = useState([]);
   const [showTags, setShowTags] = useState({});
-
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -24,19 +23,32 @@ export default function ProblemSearch() {
     fetchData();
   }, []);
 
-  const handleSearch = () => {
-    if (!query.trim()) {
-      setResults(allData);
-      return;
+  const handleSearch = async () => {
+    try {
+      // If query is empty, fetch vector search results
+      if (!query.trim()) {
+        const response = await fetch("http://localhost:5000/api/problems/search/vector", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ query: "" }) // send empty query
+        });
+        const data = await response.json();
+        setResults(data.results || []);
+        return;
+      }
+
+      // Normal local filter search
+      const filtered = allData.filter((p) =>
+        (p.title + " " + (p.description || "") + " " + ((p.tags && p.tags.join(" ")) || ""))
+          .toLowerCase()
+          .includes(query.toLowerCase())
+      );
+
+      setResults(filtered);
+    } catch (err) {
+      console.error("Error fetching search results:", err);
+      setResults([]);
     }
-
-    const filtered = allData.filter((p) =>
-      (p.title + " " + (p.description || "") + " " + ((p.tags && p.tags.join(" ")) || ""))
-        .toLowerCase()
-        .includes(query.toLowerCase())
-    );
-
-    setResults(filtered);
   };
 
   const toggleTags = (index) => {
@@ -47,11 +59,7 @@ export default function ProblemSearch() {
     <div className="ps-container">
       <h1 className="ps-title">🔎 Problem Search Robot</h1>
 
-      {/* Back Button */}
-      <button className="ps-back" onClick={() => navigate(-1)}>
-        ← Back
-      </button>
-
+      {/* Search Bar */}
       <div className="ps-search-bar">
         <input
           type="text"
@@ -64,6 +72,7 @@ export default function ProblemSearch() {
         <button className="ps-button" onClick={handleSearch}>Search</button>
       </div>
 
+      {/* Results Table */}
       <div className="ps-results-box">
         <table className="ps-table">
           <thead>
@@ -107,6 +116,9 @@ export default function ProblemSearch() {
           </tbody>
         </table>
       </div>
+
+      {/* Floating Bottom Back Button */}
+      <button className="ps-back-bottom" onClick={() => navigate(-1)}>← Go Back</button>
     </div>
   );
 }
